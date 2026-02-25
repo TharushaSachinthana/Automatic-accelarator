@@ -53,4 +53,4 @@ patches:
 images:
   - name: task-manager-api
     newName: tharusha614/task-manager-api
-    newTag: latest
+    newTag: 7b3c2b4
