@@ -1,0 +1,20 @@
+# ============================================================================
+# Kustomize - Base Configuration
+# ============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: task-manager-base
+
+namespace: task-manager
+
+commonLabels:
+  project: devops-pipeline-accelerator
+  managed-by: kustomize
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - configmap.yaml

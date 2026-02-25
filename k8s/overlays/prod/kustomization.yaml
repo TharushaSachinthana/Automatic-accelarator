@@ -1,0 +1,56 @@
+# ============================================================================
+# Kustomize - Prod Overlay
+# ============================================================================
+# Production environment configuration overrides.
+# Uses more replicas, stricter resource limits, and production settings.
+# ============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: task-manager
+
+namePrefix: prod-
+
+commonLabels:
+  environment: production
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Deployment
+      name: task-manager
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 200m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 256Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 500m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 512Mi
+
+  - target:
+      kind: ConfigMap
+      name: task-manager-config
+    patch: |-
+      - op: replace
+        path: /data/NODE_ENV
+        value: production
+      - op: replace
+        path: /data/LOG_LEVEL
+        value: warn
+
+images:
+  - name: task-manager-api
+    newName: your-dockerhub-username/task-manager-api
+    newTag: latest

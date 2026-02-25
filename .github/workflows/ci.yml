@@ -1,0 +1,240 @@
+# ============================================================================
+# CI Pipeline - DevOps Pipeline Accelerator
+# ============================================================================
+# Triggers: Push to main/develop, Pull Requests
+# Steps: Lint → Test → SonarQube → Build → Trivy Scan → Push → Update Tags
+# ============================================================================
+
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+  pull_request:
+    branches: [main, develop]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+
+env:
+  DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/task-manager-api
+  NODE_VERSION: '18'
+
+jobs:
+  # ===========================================================================
+  # Job 1: Lint & Code Quality
+  # ===========================================================================
+  lint:
+    name: 🔍 Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: 📦 Install Dependencies
+        working-directory: ./app
+        run: npm ci
+
+      - name: 🔍 Run ESLint
+        working-directory: ./app
+        run: npm run lint
+
+  # ===========================================================================
+  # Job 2: Unit Tests
+  # ===========================================================================
+  test:
+    name: 🧪 Test
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: 📦 Install Dependencies
+        working-directory: ./app
+        run: npm ci
+
+      - name: 🧪 Run Tests with Coverage
+        working-directory: ./app
+        run: npm run test:coverage
+
+      - name: 📊 Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: app/coverage/
+          retention-days: 5
+
+  # ===========================================================================
+  # Job 3: SonarQube Analysis
+  # ===========================================================================
+  sonarqube:
+    name: 📊 SonarQube Analysis
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push'
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: 📦 Install Dependencies
+        working-directory: ./app
+        run: npm ci
+
+      - name: 🧪 Run Tests with Coverage
+        working-directory: ./app
+        run: npm run test:coverage
+
+      - name: 📊 SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        continue-on-error: true  # Don't fail pipeline if SonarQube is not configured
+
+  # ===========================================================================
+  # Job 4: Build & Push Docker Image
+  # ===========================================================================
+  build-and-push:
+    name: 🐳 Build & Push
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🏷️ Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_IMAGE }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+            type=semver,pattern={{version}}
+            type=ref,event=branch
+
+      - name: 🔧 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔐 Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: 🐳 Build and Push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================================================
+  # Job 5: Security Scanning
+  # ===========================================================================
+  security-scan:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔒 Trivy Filesystem Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: './app'
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+
+      - name: 🔒 Trivy Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.DOCKER_IMAGE }}:latest'
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+
+      - name: 🔒 Trivy SARIF Report
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.DOCKER_IMAGE }}:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+        continue-on-error: true
+
+      - name: 📤 Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
+
+  # ===========================================================================
+  # Job 6: Update K8s Manifests
+  # ===========================================================================
+  update-k8s:
+    name: ☸️ Update K8s Manifests
+    runs-on: ubuntu-latest
+    needs: [build-and-push, security-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ☸️ Update Image Tag in Kustomize
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          cd k8s/overlays/prod
+          # Update kustomization.yaml with new image tag
+          sed -i "s|newTag:.*|newTag: ${SHORT_SHA}|" kustomization.yaml
+          echo "Updated image tag to: ${SHORT_SHA}"
+
+      - name: 📝 Commit & Push Changes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add k8s/
+          git diff --staged --quiet || git commit -m "chore(k8s): update image tag to $(echo ${{ github.sha }} | cut -c1-7) [skip ci]"
+          git push

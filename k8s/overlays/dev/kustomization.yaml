@@ -1,0 +1,64 @@
+# ============================================================================
+# Kustomize - Dev Overlay
+# ============================================================================
+# Development environment configuration overrides.
+# Uses fewer replicas and more verbose logging.
+# ============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: task-manager
+
+namePrefix: dev-
+
+commonLabels:
+  environment: development
+
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: Deployment
+      name: task-manager
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: 50m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 64Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 150m
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 128Mi
+
+  - target:
+      kind: ConfigMap
+      name: task-manager-config
+    patch: |-
+      - op: replace
+        path: /data/NODE_ENV
+        value: development
+      - op: replace
+        path: /data/LOG_LEVEL
+        value: debug
+
+  - target:
+      kind: Service
+      name: task-manager-service
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: NodePort
+
+images:
+  - name: task-manager-api
+    newName: task-manager-api
+    newTag: latest

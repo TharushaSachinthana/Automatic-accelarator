@@ -1,0 +1,65 @@
+# ============================================================================
+# Grafana Helm Values - Custom Configuration
+# ============================================================================
+# Customizes the Grafana Helm chart deployment on Minikube.
+# ============================================================================
+
+# Admin credentials
+adminUser: admin
+adminPassword: admin  # Change in production!
+
+# Persistence
+persistence:
+  enabled: false  # Disable for Minikube
+
+# Resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+# Service type
+service:
+  type: ClusterIP
+  port: 80
+
+# Datasources
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-server.monitoring.svc.cluster.local
+        access: proxy
+        isDefault: true
+        editable: true
+
+# Dashboard providers
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: default
+        orgId: 1
+        folder: "DevOps Accelerator"
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+# Pre-configured dashboards
+dashboardsConfigMaps:
+  default: grafana-dashboards
+
+# Grafana.ini configuration
+grafana.ini:
+  server:
+    root_url: "%(protocol)s://%(domain)s/"
+  auth.anonymous:
+    enabled: true
+    org_role: Viewer

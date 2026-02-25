@@ -1,0 +1,58 @@
+# ============================================================================
+# ArgoCD Application - Task Manager
+# ============================================================================
+# Defines the ArgoCD application that watches this repository
+# and automatically syncs Kubernetes manifests.
+# ============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: task-manager
+  namespace: argocd
+  labels:
+    app: task-manager
+    project: devops-pipeline-accelerator
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  # Project to associate the application with
+  project: default
+
+  # Source repository configuration
+  source:
+    repoURL: https://github.com/TharushaSachinthana/Automatic-accelarator.git
+    targetRevision: main
+    path: k8s/overlays/prod
+
+  # Destination cluster configuration
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: task-manager
+
+  # Sync policy
+  syncPolicy:
+    automated:
+      prune: true          # Delete resources that are no longer in Git
+      selfHeal: true       # Fix drift between Git and cluster
+      allowEmpty: false     # Prevent syncing empty resources
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  # Rollback configuration
+  revisionHistoryLimit: 10
+
+  # Health checks
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas  # Allow HPA to manage replicas

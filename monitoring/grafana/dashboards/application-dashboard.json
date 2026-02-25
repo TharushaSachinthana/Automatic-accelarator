@@ -1,0 +1,298 @@
+{
+    "annotations": {
+        "list": []
+    },
+    "description": "Task Manager API - Application Metrics Dashboard",
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+        {
+            "title": "📊 Request Rate (req/sec)",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum(rate(taskmanager_http_requests_total[5m])) by (method)",
+                    "legendFormat": "{{method}}",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "drawStyle": "line",
+                        "lineWidth": 2,
+                        "fillOpacity": 20,
+                        "gradientMode": "scheme",
+                        "pointSize": 5
+                    },
+                    "unit": "reqps"
+                }
+            }
+        },
+        {
+            "title": "⏱️ Response Time (p95)",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 0
+            },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "histogram_quantile(0.95, sum(rate(taskmanager_http_request_duration_seconds_bucket[5m])) by (le))",
+                    "legendFormat": "p95",
+                    "refId": "A"
+                },
+                {
+                    "expr": "histogram_quantile(0.50, sum(rate(taskmanager_http_request_duration_seconds_bucket[5m])) by (le))",
+                    "legendFormat": "p50",
+                    "refId": "B"
+                },
+                {
+                    "expr": "histogram_quantile(0.99, sum(rate(taskmanager_http_request_duration_seconds_bucket[5m])) by (le))",
+                    "legendFormat": "p99",
+                    "refId": "C"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "drawStyle": "line",
+                        "lineWidth": 2,
+                        "fillOpacity": 10
+                    },
+                    "unit": "s"
+                }
+            }
+        },
+        {
+            "title": "❌ Error Rate (%)",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 0,
+                "y": 8
+            },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum(rate(taskmanager_http_requests_total{status_code=~\"5..\"}[5m])) / sum(rate(taskmanager_http_requests_total[5m])) * 100",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "thresholds": {
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 1
+                            },
+                            {
+                                "color": "red",
+                                "value": 5
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "title": "🔗 Active Connections",
+            "type": "stat",
+            "gridPos": {
+                "h": 4,
+                "w": 6,
+                "x": 6,
+                "y": 8
+            },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "taskmanager_active_connections",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 50
+                            },
+                            {
+                                "color": "red",
+                                "value": 100
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "title": "📝 Task Operations",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 4,
+                "w": 12,
+                "x": 12,
+                "y": 8
+            },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum(rate(taskmanager_task_operations_total[5m])) by (operation)",
+                    "legendFormat": "{{operation}}",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 50
+                    },
+                    "unit": "ops"
+                }
+            }
+        },
+        {
+            "title": "💾 Memory Usage",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 12
+            },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "taskmanager_process_resident_memory_bytes",
+                    "legendFormat": "RSS",
+                    "refId": "A"
+                },
+                {
+                    "expr": "taskmanager_nodejs_heap_size_used_bytes",
+                    "legendFormat": "Heap Used",
+                    "refId": "B"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 20
+                    },
+                    "unit": "bytes"
+                }
+            }
+        },
+        {
+            "title": "🖥️ CPU Usage",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 12
+            },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "rate(taskmanager_process_cpu_seconds_total[5m])",
+                    "legendFormat": "CPU Seconds",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 30,
+                        "gradientMode": "scheme"
+                    },
+                    "unit": "percentunit"
+                }
+            }
+        },
+        {
+            "title": "📊 HTTP Status Codes",
+            "type": "piechart",
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 0,
+                "y": 20
+            },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum(taskmanager_http_requests_total) by (status_code)",
+                    "legendFormat": "{{status_code}}",
+                    "refId": "A"
+                }
+            ]
+        },
+        {
+            "title": "🚀 Request Duration Distribution",
+            "type": "histogram",
+            "gridPos": {
+                "h": 8,
+                "w": 16,
+                "x": 8,
+                "y": 20
+            },
+            "datasource": "Prometheus",
+            "targets": [
+                {
+                    "expr": "sum(increase(taskmanager_http_request_duration_seconds_bucket[1h])) by (le)",
+                    "legendFormat": "{{le}}",
+                    "refId": "A",
+                    "format": "heatmap"
+                }
+            ]
+        }
+    ],
+    "refresh": "10s",
+    "schemaVersion": 38,
+    "style": "dark",
+    "tags": [
+        "task-manager",
+        "devops-accelerator"
+    ],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "title": "Task Manager API - Application Dashboard",
+    "uid": "task-manager-app",
+    "version": 1
+}
