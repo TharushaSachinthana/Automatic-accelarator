@@ -52,5 +52,5 @@ patches:
 
 images:
   - name: task-manager-api
-    newName: your-dockerhub-username/task-manager-api
+    newName: tharusha614/task-manager-api
     newTag: latest

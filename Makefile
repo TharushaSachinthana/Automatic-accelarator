@@ -9,7 +9,7 @@
 
 # Variables
 APP_NAME := task-manager-api
-DOCKER_USERNAME ?= your-dockerhub-username
+DOCKER_USERNAME ?= tharusha614
 IMAGE_NAME := $(DOCKER_USERNAME)/$(APP_NAME)
 IMAGE_TAG ?= latest
 MINIKUBE_PROFILE := devops-accelerator
